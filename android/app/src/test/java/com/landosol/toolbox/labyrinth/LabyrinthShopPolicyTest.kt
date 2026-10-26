@@ -197,18 +197,21 @@ class LabyrinthShopPolicyTest {
     }
 
     @Test
-    fun `depleted row follows every configured starting area including area four`() {
+    fun `depleted row follows the configured starting area except for area four`() {
         for (start in 1..5) {
             for (area in 1..5) {
                 val decision = LabyrinthShopPolicy(finalArea = start).decide(
                     area, disabledRow(), emptyList(), refreshAvailable = true,
                 )
-                assertEquals("start=$start area=$area: $decision", area >= start, decision is LabyrinthShopDecision.Refresh)
+                // Area 4 is a fixed exit zone: an earlier starting area must not make its shop
+                // refresh, because the remaining coins belong to the final-area shop.
+                assertEquals(
+                    "start=$start area=$area: $decision",
+                    area != 4 && area >= start,
+                    decision is LabyrinthShopDecision.Refresh,
+                )
             }
         }
-        assertTrue(LabyrinthShopPolicy(finalArea = 4).decide(
-            4, listOf(item("relic", "会心", 1, true)), emptyList(), refreshAvailable = true,
-        ) is LabyrinthShopDecision.BuyRelic)
     }
 
     @Test
@@ -393,6 +396,37 @@ class LabyrinthShopPolicyTest {
             refreshAvailable = true,
         )
         assertTrue(decision is LabyrinthShopDecision.Close)
+    }
+
+    /**
+     * Reported live bug: setting the refresh start area to 3 made the area-4 shop refresh too. The
+     * area-4 shop is meant to be exited directly, whatever the start area says, so the starting
+     * area setting can never buy or refresh there.
+     */
+    @Test
+    fun `an earlier refresh start area never makes the area four shop buy or refresh`() {
+        val imprint = item("imprint", null, null, false,
+            kind = LabyrinthShopItemKind.ROLE_IMPRINT, roleImprintLabel = "坦克型职能印记")
+        val rows = listOf(
+            listOf(item("relic", "会心", 1, recognized = true)),
+            disabledRow(),
+            listOf(imprint),
+        )
+        for (start in 1..4) {
+            for (purchased in listOf(0, 2, 3)) {
+                for (items in rows) {
+                    val decision = LabyrinthShopPolicy(finalArea = start).decide(
+                        currentArea = 4,
+                        items = items,
+                        acquired = emptyList(),
+                        refreshAvailable = true,
+                        relicPurchasesInCycle = purchased,
+                    )
+                    assertTrue("start=$start purchased=$purchased: $decision",
+                        decision is LabyrinthShopDecision.Close)
+                }
+            }
+        }
     }
 
     @Test

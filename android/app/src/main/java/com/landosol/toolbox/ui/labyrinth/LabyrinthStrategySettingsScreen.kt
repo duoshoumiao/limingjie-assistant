@@ -194,11 +194,22 @@ fun LabyrinthStrategySettingsScreen(
                 }
                 StrategySection("商店", if (draft.buyRelics) "购买遗物 · ${if (draft.refreshShop) "区域 ${draft.refreshFromArea} 起刷新" else "不刷新"}" else "不购买", section, { section = it }) {
                     Text("遗物始终优先；达到允许刷新起始区域后，本轮遗物买完或当前商品行已无可购买遗物且刷新可用时，继续花300金币刷新。只有遗物/刷新都无法继续时，才用剩余金币购买已确认的职能印记。无法确认的商品不会盲买。")
+                    Text("第 4 区商店固定直接退出：不购买、不刷新，起始区域设成第 4 区或更早也一样。金币留给第 5 区的商店。")
                     StrategySwitch("购买遗物", "关闭后退出商店，也不会刷新。", draft.buyRelics, !saving) { draft = draft.copy(buyRelics = it) }
                     StrategySwitch("允许商店刷新", "买完当前可确认遗物后，才考虑花费 300 金币刷新。", draft.refreshShop, !saving && draft.buyRelics) { draft = draft.copy(refreshShop = it) }
                     if (draft.buyRelics && draft.refreshShop) {
                         StrategyNumber("允许刷新起始区域", draft.refreshFromArea, 1..5, "", !saving) { draft = draft.copy(refreshFromArea = it) }
-                        if (draft.refreshFromArea < 5) Text("提前刷新会消耗后续商店的金币，请谨慎调整。", color = MaterialTheme.colorScheme.error)
+                        when {
+                            // Area 4 always exits, so starting there is the same as starting at 5.
+                            draft.refreshFromArea == 4 -> Text(
+                                "第 4 区固定直接退出，该档位实际等同从第 5 区起刷新。",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            draft.refreshFromArea < 4 -> Text(
+                                "提前刷新会消耗后续商店的金币，请谨慎调整；第 4 区例外，始终直接退出。",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
                     }
                 }
                 StrategySection("开局", openingRosterSummary(draft.openingRosters), section, { section = it }) {

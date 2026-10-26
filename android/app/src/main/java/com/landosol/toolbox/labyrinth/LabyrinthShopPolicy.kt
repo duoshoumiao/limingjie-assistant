@@ -31,6 +31,9 @@ sealed interface LabyrinthShopDecision {
  * Rules requested by the live Dry Run:
  * - relics always outrank role-imprint goods;
  * - refresh follows the configured starting area and enable switch;
+ * - area 4 is always exited directly, whether or not the refresh starting area reaches it: that
+ *   shop is designed by the game to be skipped so the remaining coins stay available for the
+ *   final-area shop, and an earlier starting area must not turn it into a refresh loop;
  * - completed relic cycles, or a fully observed row with no actionable relic, can refresh;
  * - when no relic can still be bought and another relic cycle cannot be refreshed, a safely
  *   identified purchasable role imprint may consume the remaining coins and enter role selection;
@@ -61,9 +64,10 @@ class LabyrinthShopPolicy(
     ): LabyrinthShopDecision {
         if (!buyRelics) return LabyrinthShopDecision.Close("策略已关闭商店购买，退出商店")
         val refreshAllowed = refreshEnabled && currentArea != null && currentArea >= finalArea
-        // Preserve the default area-4 saving rule, unless the player explicitly permits refresh
-        // there. An earlier configured starting area must not be defeated by this legacy rule.
-        if (currentArea != null && currentArea in noPurchaseAreas && !refreshAllowed) {
+        // Area 4 is always a no-purchase no-refresh zone regardless of the refresh starting-area
+        // setting. The 4th-zone shop is designed by the game to be exited directly; any remaining
+        // coins should be saved for the final-area (default area-5) shop, not spent there.
+        if (currentArea != null && currentArea in noPurchaseAreas) {
             return LabyrinthShopDecision.Close("区域${currentArea}按策略不购买商店商品，直接退出")
         }
 
